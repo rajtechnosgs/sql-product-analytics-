@@ -8,7 +8,7 @@ a B2B segment inside one product (`saas` schema). Where Task 1 asked
 what is that behavior worth?"*
 
 Full write-up with 5 cross-domain insights: **[B2C vs B2B: How Funnels and
-Retention Actually Differ](<your notion.site link>)**
+Retention Actually Differ](https://sharp-postage-351.notion.site/B2C-vs-B2B-How-Funnels-and-Retention-Actually-Differ-3a5db0c6f8c280488c9cd5fb8da59478?source=copy_link)
 
 Connect with me: [www.linkedin.com/in/raj-dev-63963a22b](https://www.linkedin.com/in/raj-dev-63963a22b)
 
