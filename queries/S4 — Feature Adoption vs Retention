@@ -1,0 +1,79 @@
+-- S4 — Feature Adoption vs Retention
+-- Business question: Which product features predict 90-day retention? Which are red herrings?
+-- Note on threshold: Brief suggests N=3 as default, but diagnostic showed max observed usage_count in
+-- this dataset's first-14-day window is only 2 — N=3 would match zero rows for every feature. Adjusted
+-- to N=1 (used at least once in first 14 days), documented as a deliberate deviation.
+-- What this tells us: Two structural issues make this dataset weak for detecting real feature-retention
+-- signal: (1) baseline 90-day retention is already 99.4% (near-ceiling), leaving almost no room for any
+-- feature to show a meaningful lift; (2) adoption sample sizes are tiny — the largest is 21 accounts
+-- (API Bulk Operations), and several features have just 1-3 adopters, making single-account outcomes
+-- (like Cohort Reports' lone adopter churning, showing a -100% "lift") pure noise rather than signal.
+-- IMPORTANT CAVEAT: This comparison also has a known selection-bias problem — accounts that adopt any
+-- feature are likely more engaged overall, so even a real lift would be overstated. Combined with the
+-- ceiling effect and tiny samples above, no feature in this result should be treated as a credible driver
+-- of retention without a much larger adopter sample.
+-- PM Action: Before making any feature-investment decision from this data, prioritize collecting a larger
+-- adoption sample (or waiting for more account volume) over acting on any single feature's lift shown
+-- here — the highest-sample feature (API Bulk Operations, 21 adopters) shows only a 0.58pp lift, which is
+-- not distinguishable from noise given the near-ceiling baseline retention rate.
+-- Sanity check: accounts_adopted + accounts_not_adopted = total_eligible_accounts (1,193) for every feature
+-- with non-null values (confirmed for populated rows; 4 features — Help Center, Data Encryption, Desktop
+-- App, Webhook Support — show 0 adopters, meaning nobody used them even once in the 14-day window).
+
+with eligible_accounts as (
+    select
+        a.account_id
+      , a.signup_date
+    from saas.accounts a
+    where a.signup_date <= date '2026-06-15' - interval '90 days'
+)
+
+, account_retention as (
+    select
+        ea.account_id
+      , ea.signup_date
+      , case
+            when s.cancelled_at is null
+                 or s.cancelled_at > ea.signup_date + interval '90 days'
+            then 1 else 0
+        end as retained_90d
+    from eligible_accounts ea
+    left join saas.subscriptions s on ea.account_id = s.account_id
+)
+
+, feature_usage_14d as (
+    select
+        e.account_id
+      , e.feature_id
+      , count(*) as usage_count
+    from saas.events e
+    join eligible_accounts ea on e.account_id = ea.account_id
+    where e.feature_id is not null
+      and e.occurred_at <= ea.signup_date + interval '14 days'
+    group by 1, 2
+)
+
+, feature_adoption as (
+    select
+        account_id
+      , feature_id
+      , case when usage_count >= 1 then 1 else 0 end as adopted
+    from feature_usage_14d
+)
+
+select
+    f.feature_name
+  , count(distinct fa.account_id) filter (where fa.adopted = 1)                        as accounts_adopted
+  , count(distinct ar.account_id) filter (where fa.adopted is null or fa.adopted = 0)   as accounts_not_adopted
+  , avg(ar.retained_90d) filter (where fa.adopted = 1)                                  as retention_rate_adopted
+  , avg(ar.retained_90d) filter (where fa.adopted is null or fa.adopted = 0)            as retention_rate_not_adopted
+  , (avg(ar.retained_90d) filter (where fa.adopted = 1)
+        - avg(ar.retained_90d) filter (where fa.adopted is null or fa.adopted = 0))     as retention_lift_pp
+  , (avg(ar.retained_90d) filter (where fa.adopted = 1)
+        - avg(ar.retained_90d) filter (where fa.adopted is null or fa.adopted = 0))
+        / nullif(avg(ar.retained_90d) filter (where fa.adopted is null or fa.adopted = 0), 0) as retention_lift_pct
+from saas.features f
+cross join account_retention ar
+left join feature_adoption fa on ar.account_id = fa.account_id and f.feature_id = fa.feature_id
+group by 1
+order by retention_lift_pp desc;
