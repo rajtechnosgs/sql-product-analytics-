@@ -1,4 +1,3 @@
-
 # SQL Product Analytics — Task 2
 
 10 product-analytics queries — 5 on a B2C ecommerce dataset (`ecom` schema),
@@ -8,9 +7,24 @@ a B2B segment inside one product (`saas` schema). Where Task 1 asked
 what is that behavior worth?"*
 
 Full write-up with 5 cross-domain insights: **[B2C vs B2B: How Funnels and
-Retention Actually Differ](https://sharp-postage-351.notion.site/B2C-vs-B2B-How-Funnels-and-Retention-Actually-Differ-3a5db0c6f8c280488c9cd5fb8da59478?source=copy_link)
+Retention Actually Differ](<your notion.site link>)**
 
 Connect with me: [www.linkedin.com/in/raj-dev-63963a22b](https://www.linkedin.com/in/raj-dev-63963a22b)
+
+## Headline Findings
+
+- **Activation collapsed from 16.3% to 4.3%** across fully-observed weekly
+  signup cohorts (E1) — not a censoring artifact, a real trend.
+- **Churn MRR spiked 3-10x** in Jan-March 2026 (up to ₹13,821/month vs. a
+  typical ₹1,000-4,000/month) — and the May/June 2025 cohorts' GRR collapsed
+  to ~32% exactly 12 months later, two independent queries pointing at the
+  same event (S1, S3).
+- **NRR exceeded 100% in multiple cohorts, peaking at 127%** — the SaaS
+  "holy grail" metric, meaning retained customers expanded enough to grow
+  cohort revenue even after subtracting churn (S3).
+- **Checkout leaks the same 7.6%-8.3% at the payment-to-purchase step
+  across every acquisition channel** — a shared product problem, not a
+  channel-quality problem (E2).
 
 ## B2C vs B2B — What Actually Differs
 
@@ -24,6 +38,35 @@ Connect with me: [www.linkedin.com/in/raj-dev-63963a22b](https://www.linkedin.co
 | **Ceiling metric** | Repeat purchase rate > 100% is meaningless | Net Revenue Retention > 100% is the SaaS "holy grail" |
 | **Self-selection trap** | High-intent shoppers self-select into search | Engaged accounts self-select into feature adoption |
 | **Dominant lever found this week** | Payment-completion friction (consistent 7-8% drop at final checkout step across all channels) | Seat-expansion revenue per account outweighs plan-upgrade revenue, despite touching fewer accounts |
+
+## Query Index — Jump to What Interests You
+
+| File | Business Question | Stakeholder |
+|---|---|---|
+| `e1_activation_curve.sql` | How fast do signups become real users? | Growth / Product |
+| `e2_checkout_funnel.sql` | Where does checkout leak, by channel? | Growth Marketing |
+| `e3_cohort_retention.sql` | Do users come back and engage weekly? | Product |
+| `e4_pdp_engagement.sql` | Which products get viewed but not carted? | Merchandising |
+| `e5_cart_abandonment.sql` | Where is abandoned GMV concentrated? | Growth / Checkout |
+| `s1_mrr_movements.sql` | How did MRR change, and why? | CFO / Board |
+| `s2_trial_to_paid.sql` | How fast do trials convert to paid? | Sales / Growth |
+| `s3_grr_nrr.sql` | Are we keeping and growing cohort revenue? | CFO / Board |
+| `s4_feature_adoption.sql` | Which features predict retention? | Product |
+| `s5_expansion_revenue.sql` | What's driving expansion revenue? | Customer Success |
+
+## Key Visuals
+
+**E2 — Checkout Funnel Drop-off by Channel**
+![Checkout Funnel](screenshots/e2_checkout_funnel.jpeg)
+
+**S2 — Trial-to-Paid Conversion by Cohort**
+![Trial Conversion](screenshots/s2_trial_conversion.jpeg)
+
+**E3 — Weekly Cohort Retention**
+![Cohort Retention](screenshots/e3_cohort_retention.jpeg)
+
+**S3 — GRR / NRR by Cohort**
+![GRR NRR](screenshots/s3_grr_nrr.jpeg)
 
 ## Database Schema
 
@@ -48,10 +91,17 @@ erDiagram
 
 ## Repo Structure
 
-```
-queries/              — 10 numbered .sql files (e1-e5 = ecom, s1-s5 = saas)
-notes/saas_schema.md  — SaaS schema recon: tables, relationships, data-quality findings
-```
+queries/
+├── e1_activation_curve.sql
+├── e2_checkout_funnel.sql
+├── e3_cohort_retention.sql
+├── e4_pdp_engagement.sql
+├── e5_cart_abandonment.sql
+├── s1_mrr_movements.sql
+├── s2_trial_to_paid.sql
+├── s3_grr_nrr.sql
+├── s4_feature_adoption.sql
+└── s5_expansion_revenue.sql
 
 Each `.sql` file carries a 4-part header: business question, what the result
 tells us, a concrete PM action, and the sanity check run to verify it.
@@ -71,10 +121,9 @@ functions, sanity checks) produces very different *kinds* of answers
 depending on the domain — B2C queries lean behavioral, B2B queries lean
 commercial. Several real data-quality surprises turned into some of the
 most useful findings: session activity in `ecom` wasn't strictly anchored
-after signup (some browsing happens before account creation), and S1's
-MRR reconciliation never fully tied out despite checking multiple causes
-— both are documented as known limitations rather than forced to a clean
-number. If I did this again, I'd write each query's sanity check *before*
-writing the main query, since several bugs (E1's negative activation
-time, E3's w0_active mismatch) would have surfaced immediately instead of
-after the fact.
+after signup, and S1's MRR reconciliation never fully tied out despite
+checking multiple causes — both documented as known limitations rather
+than forced to a clean number. A subscriptions-join fan-out bug in S4
+(caught in review) was a good reminder that every join needs an explicit
+answer to "is this still one row per entity after this join" — not just
+at the start of a query, but after every join added later.
