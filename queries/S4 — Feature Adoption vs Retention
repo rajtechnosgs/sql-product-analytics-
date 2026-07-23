@@ -4,21 +4,20 @@
 -- this dataset's first-14-day window is only 2 — N=3 would match zero rows for every feature. Adjusted
 -- to N=1 (used at least once in first 14 days), documented as a deliberate deviation.
 -- What this tells us: Two structural issues make this dataset weak for detecting real feature-retention
--- signal: (1) baseline 90-day retention is already 99.4% (near-ceiling), leaving almost no room for any
--- feature to show a meaningful lift; (2) adoption sample sizes are tiny — the largest is 21 accounts
+-- signal: (1) baseline 90-day retention is already ~99.8% (near-ceiling, deduped), leaving almost no room
+-- for any feature to show a meaningful lift; (2) adoption sample sizes are tiny — the largest is 21 accounts
 -- (API Bulk Operations), and several features have just 1-3 adopters, making single-account outcomes
--- (like Cohort Reports' lone adopter churning, showing a -100% "lift") pure noise rather than signal.
+-- pure noise rather than signal.
 -- IMPORTANT CAVEAT: This comparison also has a known selection-bias problem — accounts that adopt any
 -- feature are likely more engaged overall, so even a real lift would be overstated. Combined with the
 -- ceiling effect and tiny samples above, no feature in this result should be treated as a credible driver
 -- of retention without a much larger adopter sample.
 -- PM Action: Before making any feature-investment decision from this data, prioritize collecting a larger
--- adoption sample (or waiting for more account volume) over acting on any single feature's lift shown
--- here — the highest-sample feature (API Bulk Operations, 21 adopters) shows only a 0.58pp lift, which is
--- not distinguishable from noise given the near-ceiling baseline retention rate.
--- Sanity check: accounts_adopted + accounts_not_adopted = total_eligible_accounts (1,193) for every feature
--- with non-null values (confirmed for populated rows; 4 features — Help Center, Data Encryption, Desktop
--- App, Webhook Support — show 0 adopters, meaning nobody used them even once in the 14-day window).
+-- adoption sample over acting on any single feature's lift shown here.
+-- Sanity check: accounts_adopted + accounts_not_adopted = total_eligible_accounts (1,193, confirmed).
+-- Fixed a subscriptions-join fan-out bug: LEFT JOIN to subscriptions without deduping produced 2,283 rows
+-- from 1,193 distinct accounts. Fixed via ROW_NUMBER() picking one (most recent) subscription per account
+-- before computing retention. Baseline retention moved from 99.43% (fanned, wrong) to 99.83% (deduped, correct).
 
 with eligible_accounts as (
     select
@@ -26,6 +25,17 @@ with eligible_accounts as (
       , a.signup_date
     from saas.accounts a
     where a.signup_date <= date '2026-06-15' - interval '90 days'
+)
+
+, latest_subscription_per_account as (
+    select
+        account_id
+      , cancelled_at
+      , row_number() over (
+            partition by account_id
+            order by start_date desc
+        ) as rn
+    from saas.subscriptions
 )
 
 , account_retention as (
@@ -38,7 +48,8 @@ with eligible_accounts as (
             then 1 else 0
         end as retained_90d
     from eligible_accounts ea
-    left join saas.subscriptions s on ea.account_id = s.account_id
+    left join latest_subscription_per_account s
+        on ea.account_id = s.account_id and s.rn = 1
 )
 
 , feature_usage_14d as (
