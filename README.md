@@ -7,7 +7,7 @@ a B2B segment inside one product (`saas` schema). Where Task 1 asked
 what is that behavior worth?"*
 
 Full write-up with 5 cross-domain insights: **[B2C vs B2B: How Funnels and
-Retention Actually Differ](<your notion.site link>)**
+Retention Actually Differ](https://sharp-postage-351.notion.site/What-10-SQL-Queries-Told-Me-About-This-Business-39ddb0c6f8c280fc8010cc98517001c3?source=copy_link)**
 
 Connect with me: [www.linkedin.com/in/raj-dev-63963a22b](https://www.linkedin.com/in/raj-dev-63963a22b)
 
@@ -91,6 +91,7 @@ erDiagram
 
 ## Repo Structure
 
+```
 queries/
 ├── e1_activation_curve.sql
 ├── e2_checkout_funnel.sql
@@ -102,9 +103,9 @@ queries/
 ├── s3_grr_nrr.sql
 ├── s4_feature_adoption.sql
 └── s5_expansion_revenue.sql
-
-Each `.sql` file carries a 4-part header: business question, what the result
-tells us, a concrete PM action, and the sanity check run to verify it.
+notes/saas_schema.md   — SaaS schema recon: tables, relationships, data-quality findings
+screenshots/           — Metabase visualizations for key queries
+```
 
 ## How to Run
 
